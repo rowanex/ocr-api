@@ -8,10 +8,6 @@ translation_cache = {}
 
 def ocr_image(image_bytes: bytes) -> str:
     """Распознаем текст с изображения"""
-    from PIL import Image
-    import io
-    import torch
-
     image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
     pixel_values = ocr_processor(images=image, return_tensors="pt").pixel_values
 
