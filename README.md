@@ -38,5 +38,5 @@ uvicorn app.main:app --reload
 
 ## Запуск docker
 ```bash
-docker build -t ocr-api .
-docker run -p 8000:8000 ocr-api
+docker build -t ocr-api:latest .
+docker run -p 8000:8000 ocr-api:latest
