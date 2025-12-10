@@ -6,6 +6,7 @@ from transformers import pipeline
 # Кэш моделей перевода, чтобы не загружать их каждый раз
 translation_cache = {}
 
+
 def ocr_image(image_bytes: bytes) -> str:
     """Распознаем текст с изображения"""
     image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
@@ -16,15 +17,18 @@ def ocr_image(image_bytes: bytes) -> str:
     text = ocr_processor.batch_decode(generated_ids, skip_special_tokens=True)[0]
     return text
 
+
 def detect_language(text: str) -> str:
     """Определяем язык текста"""
     result = lang_detect(text)
     return result[0]['label']
 
+
 def summarize_text(text: str, max_length: int = 150) -> str:
     """Создаем краткое резюме текста"""
     summary = summarizer(text, max_length=max_length, min_length=30, do_sample=False)
     return summary[0]['summary_text']
+
 
 def translate_text(text: str, src_lang: str, tgt_lang: str) -> str:
     """Перевод текста с src_lang на tgt_lang"""

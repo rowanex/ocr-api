@@ -31,12 +31,12 @@ python -m venv venv
 source venv/bin/activate  # Linux/macOS
 venv\Scripts\activate     # Windows
 #requirments
-pip install -r requirements.txt 
+pip install -r requirements.txt
 # OR (homebrew pyhton)
 pip install --break-system-packages -r requirements.txt
 uvicorn app.main:app --reload
 
 ## Запуск docker
 ```bash
-docker build -t ocr-api .
-docker run -p 8000:8000 ocr-api
+docker build -t ocr-api:latest .
+docker run -p 8000:8000 ocr-api:latest
