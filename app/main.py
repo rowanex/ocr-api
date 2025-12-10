@@ -1,9 +1,11 @@
-from fastapi import FastAPI, File, UploadFile, Query
+from fastapi import FastAPI, File, UploadFile
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
-from .utils import ocr_image, detect_language, summarize_text, translate_text
+from .utils import ocr_image, detect_language
+
 
 app = FastAPI(title="OCR & Summarization API")
+
 
 # ====================
 # Pydantic модели для ответов
@@ -12,9 +14,11 @@ class ExtractTextResponse(BaseModel):
     text: str = Field(..., example="Пример текста с изображения")
     language: str = Field(..., example="ru")
 
+
 class SummarizedExtractTextResponse(BaseModel):
     original_language: str = Field(..., example="ru")
     summary: str = Field(..., example="Краткое содержание текста на выбранном языке")
+
 
 # ====================
 # Роуты
