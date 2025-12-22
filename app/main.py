@@ -10,13 +10,13 @@ app = FastAPI(title="OCR & Summarization API")
 # Pydantic модели для ответов
 # ====================
 class ExtractTextResponse(BaseModel):
-    text: str = Field(..., example="Пример текста с изображения")
-    language: str = Field(..., example="ru")
+    text: str = Field(..., json_schema_extra={"example": "Пример текста с изображения"})
+    language: str = Field(..., json_schema_extra={"example": "ru"})
 
 
 class SummarizedExtractTextResponse(BaseModel):
-    original_language: str = Field(..., example="ru")
-    summary: str = Field(..., example="Краткое содержание текста на выбранном языке")
+    original_language: str = Field(..., json_schema_extra={"example": "ru"})
+    summary: str = Field(..., json_schema_extra={"example": "Краткое содержание текста на выбранном языке"})
 
 
 # ====================
