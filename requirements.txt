@@ -7,3 +7,4 @@ pytest
 flake8
 autopep8
 python-multipart
+httpx
