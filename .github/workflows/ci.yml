@@ -39,5 +39,5 @@ jobs:
 
       - name: Run tests with coverage
         run: |
-          coverage run -m pytest tests/
+          coverage run --source=app -m pytest tests/
           coverage report -m
