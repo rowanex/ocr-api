@@ -19,23 +19,21 @@ def create_test_image():
 # /extract-text
 # ====================
 
-def test_extract_text_success_and_empty_ocr():
-    """
-    OCR должен вернуть пустую строку.
-    """
+def test_extract_text_success_and_empty_ocr(monkeypatch):
+    monkeypatch.setattr("app.main.ocr_image", lambda _: "")
+    monkeypatch.setattr("app.main.detect_language", lambda _: "en")
+
     image_bytes = create_test_image()
     files = {"image": ("test.png", image_bytes, "image/png")}
 
     response = client.post("/extract-text", files=files)
 
     assert response.status_code == 200
-    data = response.json()
+    assert response.json() == {
+        "text": "",
+        "language": "en",
+    }
 
-    assert "text" in data
-    assert "language" in data
-    assert isinstance(data["text"], str)
-    assert data["text"].strip() == ""
-    assert isinstance(data["language"], str)
 
 
 def test_extract_text_no_file():
@@ -63,19 +61,25 @@ def test_extract_text_invalid_file_type():
 # ====================
 
 
-def test_summarized_extract_text_success():
+def test_summarized_extract_text_success(monkeypatch):
+    monkeypatch.setattr("app.main.ocr_image", lambda _: "hello world")
+    monkeypatch.setattr("app.main.detect_language", lambda _: "en")
+    monkeypatch.setattr("app.main.summarize_text", lambda _: "short summary")
+    monkeypatch.setattr(
+        "app.main.translate_text",
+        lambda text, src_lang, tgt_lang: text,
+    )
+
     image_bytes = create_test_image()
     files = {"image": ("test.png", image_bytes, "image/png")}
 
     response = client.post("/summarized-extract-text?summary_language=en", files=files)
 
     assert response.status_code == 200
-    data = response.json()
-
-    assert "original_language" in data
-    assert "summary" in data
-    assert isinstance(data["summary"], str)
-    assert len(data["summary"].strip()) > 0
+    assert response.json() == {
+        "original_language": "en",
+        "summary": "short summary",
+    }
 
 
 def test_summarized_extract_text_default_language():
