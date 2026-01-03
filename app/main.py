@@ -1,9 +1,40 @@
-from fastapi import FastAPI, File, UploadFile, Query
+from fastapi import FastAPI, File, UploadFile, Query, HTTPException
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
-from .utils import ocr_image, detect_language, summarize_text, translate_text
+from .utils import DEVICE, ocr_image, detect_language, summarize_text, translate_text
+from . import models
+from transformers import VisionEncoderDecoderModel, TrOCRProcessor, pipeline
+import logging
+from typing import Literal
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 app = FastAPI(title="OCR & Summarization API")
+
+
+@app.on_event("startup")
+def load_models():
+    logger.info("Loading ML models...")
+
+    models.ocr_processor = TrOCRProcessor.from_pretrained(
+        "microsoft/trocr-base-handwritten"
+    )
+    models.ocr_model = VisionEncoderDecoderModel.from_pretrained(
+        "microsoft/trocr-base-handwritten"
+    ).to(DEVICE)
+
+    models.lang_detect = pipeline(
+        "text-classification",
+        model="papluca/xlm-roberta-base-language-detection"
+    )
+
+    models.summarizer = pipeline(
+        "summarization",
+        model="facebook/bart-large-cnn"
+    )
+
+    logger.info("Models loaded successfully")
 
 
 # ====================
@@ -46,8 +77,19 @@ async def extract_text(image: UploadFile = File(..., description="Изображ
 )
 async def summarized_extract_text(
     image: UploadFile = File(..., description="Изображение для распознавания текста"),
-    summary_language: str = Query("en", description="Язык, на котором вернуть summary (например 'en', 'ru')")
+    summary_language: Literal[
+        "en", "ru", "de", "fr", "es", "it", "pt", "nl"
+    ] = Query(
+        "en",
+        description="Язык summary. Поддерживаемые значения: en, ru, de, fr, es, it, pt, nl"
+    )
 ):
+    if summary_language not in SUPPORTED_LANGS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unsupported summary_language. Supported languages: {sorted(SUPPORTED_LANGS)}"
+        )
+    
     try:
         image_bytes = await image.read()
         text = ocr_image(image_bytes)
