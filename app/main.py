@@ -1,7 +1,7 @@
 from fastapi import FastAPI, File, UploadFile, Query, HTTPException
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
-from .utils import ocr_image, detect_language, summarize_text, translate_text
+from .utils import ocr_image, detect_language, summarize_text, translate_text, SUPPORTED_LANGS
 from typing import Literal
 
 app = FastAPI(title="OCR & Summarization API")
