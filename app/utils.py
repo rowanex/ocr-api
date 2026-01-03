@@ -3,8 +3,9 @@ import io
 from .models import ocr_processor, ocr_model, lang_detect, summarizer
 from transformers import pipeline
 
-# Кэш моделей перевода, чтобы не загружать их каждый раз
+# Кэш моделей перевода
 translation_cache = {}
+SUPPORTED_LANGS = {"en", "ru", "de", "fr", "es", "it", "pt", "nl"}
 
 
 def ocr_image(image_bytes: bytes) -> str:
@@ -12,7 +13,6 @@ def ocr_image(image_bytes: bytes) -> str:
     image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
     pixel_values = ocr_processor(images=image, return_tensors="pt").pixel_values
 
-    # Генерация текста
     generated_ids = ocr_model.generate(pixel_values)
     text = ocr_processor.batch_decode(generated_ids, skip_special_tokens=True)[0]
     return text
@@ -32,15 +32,21 @@ def summarize_text(text: str, max_length: int = 150) -> str:
 
 def translate_text(text: str, src_lang: str, tgt_lang: str) -> str:
     """Перевод текста с src_lang на tgt_lang"""
+
+    if not text.strip():
+        return ""
+
+    if src_lang not in SUPPORTED_LANGS or tgt_lang not in SUPPORTED_LANGS:
+        return text
+
     if src_lang == tgt_lang:
-        return text  # перевод не нужен
+        return text
 
     model_name = f"Helsinki-NLP/opus-mt-{src_lang}-{tgt_lang}"
     if model_name not in translation_cache:
         try:
             translation_cache[model_name] = pipeline("translation", model=model_name)
         except Exception:
-            # Если модель для пары языков не найдена, возвращаем исходный текст
             return text
 
     translator = translation_cache[model_name]

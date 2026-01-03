@@ -1,7 +1,8 @@
-from fastapi import FastAPI, File, UploadFile, Query
+from fastapi import FastAPI, File, UploadFile, Query, HTTPException
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
-from .utils import ocr_image, detect_language, summarize_text, translate_text
+from .utils import ocr_image, detect_language, summarize_text, translate_text, SUPPORTED_LANGS
+from typing import Literal
 
 app = FastAPI(title="OCR & Summarization API")
 
@@ -45,9 +46,20 @@ async def extract_text(image: UploadFile = File(..., description="Изображ
     description="Принимает изображение, извлекает текст, определяет язык и возвращает краткое резюме на выбранном языке"
 )
 async def summarized_extract_text(
-    image: UploadFile = File(..., description="Изображение для распознавания текста"),
-    summary_language: str = Query("en", description="Язык, на котором вернуть summary (например 'en', 'ru')")
+        image: UploadFile = File(..., description="Изображение для распознавания текста"),
+        summary_language: Literal[
+            "en", "ru", "de", "fr", "es", "it", "pt", "nl"
+        ] = Query(
+            "en",
+            description="Язык summary. Поддерживаемые значения: en, ru, de, fr, es, it, pt, nl"
+        )
 ):
+    if summary_language not in SUPPORTED_LANGS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unsupported summary_language. Supported languages: {sorted(SUPPORTED_LANGS)}"
+        )
+
     try:
         image_bytes = await image.read()
         text = ocr_image(image_bytes)
