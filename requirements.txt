@@ -1,6 +1,9 @@
 fastapi
 uvicorn[standard]
-transformers
+transformers>=4.30
+protobuf
+sentencepiece
+torchvision
 torch
 Pillow
 pytest

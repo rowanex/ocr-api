@@ -3,7 +3,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 from .utils import DEVICE, ocr_image, detect_language, summarize_text, translate_text
 from . import models
-from transformers import VisionEncoderDecoderModel, TrOCRProcessor, pipeline
+from transformers import DonutProcessor, VisionEncoderDecoderModel, pipeline
 import logging
 from typing import Literal
 
@@ -17,12 +17,8 @@ app = FastAPI(title="OCR & Summarization API")
 def load_models():
     logger.info("Loading ML models...")
 
-    models.ocr_processor = TrOCRProcessor.from_pretrained(
-        "microsoft/trocr-base-printed"
-    )
-    models.ocr_model = VisionEncoderDecoderModel.from_pretrained(
-        "microsoft/trocr-base-printed"
-    ).to(DEVICE)
+    models.ocr_processor = DonutProcessor.from_pretrained("naver-clova-ix/donut-base", use_fast=True)
+    models.ocr_model = VisionEncoderDecoderModel.from_pretrained("naver-clova-ix/donut-base").to(DEVICE)
 
     models.lang_detect = pipeline(
         "text-classification",

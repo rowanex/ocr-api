@@ -1,7 +1,7 @@
 from PIL import Image
 import io
 import torch
-from transformers import pipeline
+from transformers import VisionEncoderDecoderModel, DonutProcessor, pipeline
 from . import models
 
 # ====================
@@ -21,18 +21,16 @@ def ocr_image(image_bytes: bytes) -> str:
     """Распознаем текст с изображения"""
     image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
 
-    pixel_values = models.ocr_processor(
-        images=image,
-        return_tensors="pt"
-    ).pixel_values.to(DEVICE)
+    pixel_values = models.ocr_processor(image, return_tensors="pt").pixel_values.to(DEVICE)
 
     with torch.no_grad():
-        generated_ids = models.ocr_model.generate(pixel_values)
+        generated_ids = models.ocr_model.generate(
+            pixel_values,
+            max_length=1024,
+            num_beams=5
+        )
 
-    text = models.ocr_processor.batch_decode(
-        generated_ids,
-        skip_special_tokens=True
-    )[0]
+    text = models.ocr_processor.batch_decode(generated_ids, skip_special_tokens=True)[0]
 
     return text.strip()
 
