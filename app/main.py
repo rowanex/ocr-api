@@ -1,10 +1,40 @@
 from fastapi import FastAPI, File, UploadFile, Query, HTTPException
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
-from .utils import ocr_image, detect_language, summarize_text, translate_text, SUPPORTED_LANGS
+from .utils import DEVICE, ocr_image, detect_language, summarize_text, translate_text
+from . import models
+from transformers import VisionEncoderDecoderModel, TrOCRProcessor, pipeline
+import logging
 from typing import Literal
 
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 app = FastAPI(title="OCR & Summarization API")
+
+
+@app.on_event("startup")
+def load_models():
+    logger.info("Loading ML models...")
+
+    models.ocr_processor = TrOCRProcessor.from_pretrained(
+        "microsoft/trocr-base-printed"
+    )
+    models.ocr_model = VisionEncoderDecoderModel.from_pretrained(
+        "microsoft/trocr-base-printed"
+    ).to(DEVICE)
+
+    models.lang_detect = pipeline(
+        "text-classification",
+        model="papluca/xlm-roberta-base-language-detection"
+    )
+
+    models.summarizer = pipeline(
+        "summarization",
+        model="facebook/bart-large-cnn"
+    )
+
+    logger.info("Models loaded successfully")
 
 
 # ====================
