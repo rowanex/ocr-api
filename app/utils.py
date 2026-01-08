@@ -1,7 +1,7 @@
 from PIL import Image
 import io
 import torch
-from transformers import pipeline
+from transformers import VisionEncoderDecoderModel, DonutProcessor, pipeline
 from . import models
 
 # ====================
@@ -75,10 +75,10 @@ def summarize_text(text: str, max_length: int = 150) -> str:
 
 def translate_text(text: str, src_lang: str, tgt_lang: str) -> str:
     """Перевод текста с src_lang на tgt_lang"""
-
+    
     if not text.strip():
         return ""
-
+    
     if src_lang not in SUPPORTED_LANGS or tgt_lang not in SUPPORTED_LANGS:
         return text
 
