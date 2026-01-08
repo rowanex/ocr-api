@@ -72,10 +72,14 @@ class HealthNotReadyResponse(BaseModel):
 # ====================
 # Роуты
 # ====================
-@app.get("/health/live", tags=["Health"])
+@app.get(
+    "/health/live",
+    tags=["Health"],
+    summary="Проверка доступности API",
+    description="Проверяет, что API запущено и отвечает на HTTP-запросы"
+)
 def liveness():
     return {"status": "alive"}
-
 
 @app.get(
     "/health/ready",
