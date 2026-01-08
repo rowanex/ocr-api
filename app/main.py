@@ -7,6 +7,30 @@ from typing import Literal
 app = FastAPI(title="OCR & Summarization API")
 
 
+@app.on_event("startup")
+def load_models():
+    logger.info("Loading ML models...")
+
+    models.ocr_processor = TrOCRProcessor.from_pretrained(
+        "microsoft/trocr-base-handwritten"
+    )
+    models.ocr_model = VisionEncoderDecoderModel.from_pretrained(
+        "microsoft/trocr-base-handwritten"
+    ).to(DEVICE)
+
+    models.lang_detect = pipeline(
+        "text-classification",
+        model="papluca/xlm-roberta-base-language-detection"
+    )
+
+    models.summarizer = pipeline(
+        "summarization",
+        model="facebook/bart-large-cnn"
+    )
+
+    logger.info("Models loaded successfully")
+
+
 # ====================
 # Pydantic модели для ответов
 # ====================
