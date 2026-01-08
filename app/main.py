@@ -113,7 +113,7 @@ def readiness():
             "language_detection": "papluca/xlm-roberta-base-language-detection",
             "summarization": "facebook/bart-large-cnn",
             "translation": "lazy-load",
-        }
+        },
         uptime_seconds=int(time.time() - START_TIME),
     )
 
