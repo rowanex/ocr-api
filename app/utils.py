@@ -4,8 +4,16 @@ import torch
 from transformers import pipeline
 from . import models
 
+# ====================
+# Device
+# ====================
+DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+# ====================
 # Кэш моделей перевода
+# ====================
 translation_cache = {}
+
 SUPPORTED_LANGS = {"en", "ru", "de", "fr", "es", "it", "pt", "nl"}
 
 
@@ -13,9 +21,18 @@ def ocr_image(image_bytes: bytes) -> str:
     """Распознаем текст с изображения"""
     image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
 
-    generated_ids = ocr_model.generate(pixel_values)
-    text = ocr_processor.batch_decode(generated_ids, skip_special_tokens=True)[0]
-    return text
+    pixel_values = models.ocr_processor(image, return_tensors="pt").pixel_values.to(DEVICE)
+
+    with torch.no_grad():
+        generated_ids = models.ocr_model.generate(
+            pixel_values,
+            max_length=1024,
+            num_beams=5
+        )
+
+    text = models.ocr_processor.batch_decode(generated_ids, skip_special_tokens=True)[0]
+
+    return text.strip()
 
 
 def detect_language(text: str) -> str:
