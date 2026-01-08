@@ -17,8 +17,12 @@ app = FastAPI(title="OCR & Summarization API")
 def load_models():
     logger.info("Loading ML models...")
 
-    models.ocr_processor = DonutProcessor.from_pretrained("naver-clova-ix/donut-base", use_fast=True)
-    models.ocr_model = VisionEncoderDecoderModel.from_pretrained("naver-clova-ix/donut-base").to(DEVICE)
+    models.ocr_processor = TrOCRProcessor.from_pretrained(
+        "microsoft/trocr-base-handwritten"
+    )
+    models.ocr_model = VisionEncoderDecoderModel.from_pretrained(
+        "microsoft/trocr-base-handwritten"
+    ).to(DEVICE)
 
     models.lang_detect = pipeline(
         "text-classification",

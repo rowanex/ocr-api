@@ -1,7 +1,7 @@
 from PIL import Image
 import io
 import torch
-from transformers import VisionEncoderDecoderModel, DonutProcessor, pipeline
+from transformers import pipeline
 from . import models
 
 # ====================
@@ -49,7 +49,7 @@ def summarize_text(text: str, max_length: int = 150) -> str:
 
     if not text.strip():
         return ""
-
+    
     text = text[:3000]
 
     max_input_length = 1024
