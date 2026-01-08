@@ -4,7 +4,7 @@ from pydantic import BaseModel, Field
 from .utils import ocr_image, detect_language, summarize_text, translate_text, SUPPORTED_LANGS
 from . import models
 import logging
-from typing import Literal
+from typing import Literal, Union
 import time
 
 
@@ -18,8 +18,20 @@ app = FastAPI(title="OCR & Summarization API")
 
 @app.on_event("startup")
 def load_models():
+    import os
+
+    load_flag = os.getenv("LOAD_MODELS", "1")
+    if load_flag == "0":
+        logger.info("LOAD_MODELS=0 -> skip loading ML models")
+        return
+
     try:
         logger.info("Loading ML models...")
+
+        import torch
+        from transformers import DonutProcessor, VisionEncoderDecoderModel, pipeline as hf_pipeline
+
+        DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
         models.ocr_processor = DonutProcessor.from_pretrained(
             "naver-clova-ix/donut-base", use_fast=True
@@ -28,14 +40,16 @@ def load_models():
             "naver-clova-ix/donut-base"
         ).to(DEVICE)
 
-        models.lang_detect = pipeline(
+        models.lang_detect = hf_pipeline(
             "text-classification",
-            model="papluca/xlm-roberta-base-language-detection"
+            model="papluca/xlm-roberta-base-language-detection",
+            device=0 if torch.cuda.is_available() else -1
         )
 
-        models.summarizer = pipeline(
+        models.summarizer = hf_pipeline(
             "summarization",
-            model="facebook/bart-large-cnn"
+            model="facebook/bart-large-cnn",
+            device=0 if torch.cuda.is_available() else -1
         )
 
         models.models_loaded = True
@@ -58,15 +72,6 @@ class SummarizedExtractTextResponse(BaseModel):
     original_language: str = Field(..., json_schema_extra={"example": "ru"})
     summary: str = Field(..., json_schema_extra={"example": "Краткое содержание текста на выбранном языке"})
 
-class HealthReadyResponse(BaseModel):
-    status: Literal["ready"]
-    models: dict[str, str]
-    uptime_seconds: int
-
-class HealthNotReadyResponse(BaseModel):
-    status: Literal["not_ready"]
-    missing_models: list[str]
-    error: str | None = None
 
 class HealthReadyResponse(BaseModel):
     status: Literal["ready"]
@@ -83,14 +88,10 @@ class HealthNotReadyResponse(BaseModel):
 # ====================
 # Роуты
 # ====================
-@app.get(
-    "/health/live",
-    tags=["Health"],
-    summary="Проверка доступности API",
-    description="Проверяет, что API запущено и отвечает на HTTP-запросы"
-)
+@app.get("/health/live", tags=["Health"])
 def liveness():
     return {"status": "alive"}
+
 
 @app.get(
     "/health/ready",
