@@ -6,31 +6,45 @@ from . import models
 from transformers import DonutProcessor, VisionEncoderDecoderModel, pipeline
 import logging
 from typing import Literal
+import time
+
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+START_TIME = time.time()
 
 app = FastAPI(title="OCR & Summarization API")
 
 
 @app.on_event("startup")
 def load_models():
-    logger.info("Loading ML models...")
+    try:
+        logger.info("Loading ML models...")
 
-    models.ocr_processor = DonutProcessor.from_pretrained("naver-clova-ix/donut-base", use_fast=True)
-    models.ocr_model = VisionEncoderDecoderModel.from_pretrained("naver-clova-ix/donut-base").to(DEVICE)
+        models.ocr_processor = DonutProcessor.from_pretrained(
+            "naver-clova-ix/donut-base", use_fast=True
+        )
+        models.ocr_model = VisionEncoderDecoderModel.from_pretrained(
+            "naver-clova-ix/donut-base"
+        ).to(DEVICE)
 
-    models.lang_detect = pipeline(
-        "text-classification",
-        model="papluca/xlm-roberta-base-language-detection"
-    )
+        models.lang_detect = pipeline(
+            "text-classification",
+            model="papluca/xlm-roberta-base-language-detection"
+        )
 
-    models.summarizer = pipeline(
-        "summarization",
-        model="facebook/bart-large-cnn"
-    )
+        models.summarizer = pipeline(
+            "summarization",
+            model="facebook/bart-large-cnn"
+        )
 
-    logger.info("Models loaded successfully")
+        models.models_loaded = True
+        logger.info("Models loaded successfully")
+
+    except Exception as e:
+        models.load_error = str(e)
+        logger.exception("Failed to load models")
 
 
 # ====================
@@ -45,10 +59,69 @@ class SummarizedExtractTextResponse(BaseModel):
     original_language: str = Field(..., json_schema_extra={"example": "ru"})
     summary: str = Field(..., json_schema_extra={"example": "Краткое содержание текста на выбранном языке"})
 
+class HealthReadyResponse(BaseModel):
+    status: Literal["ready"]
+    models: dict[str, str]
+    uptime_seconds: int
+
+class HealthNotReadyResponse(BaseModel):
+    status: Literal["not_ready"]
+    missing_models: list[str]
+    error: str | None = None
 
 # ====================
 # Роуты
 # ====================
+@app.get(
+    "/health/live",
+    tags=["Health"],
+    summary="Проверка доступности API",
+    description="Проверяет, что API запущено и отвечает на HTTP-запросы"
+)
+def liveness():
+    return {"status": "alive"}
+
+@app.get(
+    "/health/ready",
+    tags=["Health"],
+    response_model=Union[HealthReadyResponse, HealthNotReadyResponse],
+    summary="Проверка готовности API принимать OCR запросы",
+    description="Возвращает информацию по статусу API и загрузки моделей"
+)
+def readiness():
+    missing = []
+
+    if models.ocr_processor is None:
+        missing.append("ocr_processor")
+    if models.ocr_model is None:
+        missing.append("ocr_model")
+    if models.lang_detect is None:
+        missing.append("language_detector")
+    if models.summarizer is None:
+        missing.append("summarizer")
+
+    if missing:
+        return JSONResponse(
+            status_code=503,
+            content=HealthNotReadyResponse(
+                status="not_ready",
+                missing_models=missing,
+                error=models.load_error,
+            ).model_dump(),
+        )
+
+    return HealthReadyResponse(
+        status="ready",
+        models={
+            "ocr": "naver-clova-ix/donut-base",
+            "language_detection": "papluca/xlm-roberta-base-language-detection",
+            "summarization": "facebook/bart-large-cnn",
+            "translation": "lazy-load",
+        },
+        uptime_seconds=int(time.time() - START_TIME),
+    )
+
+
 @app.post(
     "/extract-text",
     response_model=ExtractTextResponse,

@@ -25,15 +25,44 @@ API для распознавания текста с изображений и 
      }
      ```
 
+3. **/health/live**
+   - GET
+   - Liveness-probe. Проверяет, что приложение запущено и отвечает.
+   - Ответ:
+    ```json
+    {
+      "status": "alive"
+    }
+    ```
+
+4. **/health/ready**  
+   - GET
+   - Readiness-probe. Проверяет, что все ML-модели загружены и сервис готов обрабатывать запросы.
+   - Ответ 200:
+    ```json
+    {
+      "status": "ready",
+      "models": {
+        "ocr": "naver-clova-ix/donut-base",
+        "language_detection": "papluca/xlm-roberta-base-language-detection",
+        "summarization": "facebook/bart-large-cnn",
+        "translation": "lazy-load"
+      },
+      "uptime_seconds": 123,
+    }
+    ```
+
+
 ## Запуск локально
 ```bash
 python -m venv venv
 source venv/bin/activate  # Linux/macOS
 venv\Scripts\activate     # Windows
+
 #requirments
-pip install -r requirements.txt
-# OR (homebrew pyhton)
-pip install --break-system-packages -r requirements.txt
+pip install -r requirements.txt -f https://download.pytorch.org/whl/cpu/torch_stable.html
+
+#start
 uvicorn app.main:app --reload
 
 ## Запуск docker
