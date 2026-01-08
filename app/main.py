@@ -1,36 +1,63 @@
 from fastapi import FastAPI, File, UploadFile, Query, HTTPException
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
-from .utils import DEVICE, ocr_image, detect_language, summarize_text, translate_text
+from .utils import ocr_image, detect_language, summarize_text, translate_text, SUPPORTED_LANGS
 from . import models
-from transformers import DonutProcessor, VisionEncoderDecoderModel, pipeline
 import logging
-from typing import Literal
+from typing import Literal, Union
+import time
+
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+START_TIME = time.time()
 
 app = FastAPI(title="OCR & Summarization API")
 
 
 @app.on_event("startup")
 def load_models():
-    logger.info("Loading ML models...")
+    import os
 
-    models.ocr_processor = DonutProcessor.from_pretrained("naver-clova-ix/donut-base", use_fast=True)
-    models.ocr_model = VisionEncoderDecoderModel.from_pretrained("naver-clova-ix/donut-base").to(DEVICE)
+    load_flag = os.getenv("LOAD_MODELS", "1")
+    if load_flag == "0":
+        logger.info("LOAD_MODELS=0 -> skip loading ML models")
+        return
 
-    models.lang_detect = pipeline(
-        "text-classification",
-        model="papluca/xlm-roberta-base-language-detection"
-    )
+    try:
+        logger.info("Loading ML models...")
 
-    models.summarizer = pipeline(
-        "summarization",
-        model="facebook/bart-large-cnn"
-    )
+        import torch
+        from transformers import DonutProcessor, VisionEncoderDecoderModel, pipeline as hf_pipeline
 
-    logger.info("Models loaded successfully")
+        DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+        models.ocr_processor = DonutProcessor.from_pretrained(
+            "naver-clova-ix/donut-base", use_fast=True
+        )
+        models.ocr_model = VisionEncoderDecoderModel.from_pretrained(
+            "naver-clova-ix/donut-base"
+        ).to(DEVICE)
+
+        models.lang_detect = hf_pipeline(
+            "text-classification",
+            model="papluca/xlm-roberta-base-language-detection",
+            device=0 if torch.cuda.is_available() else -1
+        )
+
+        models.summarizer = hf_pipeline(
+            "summarization",
+            model="facebook/bart-large-cnn",
+            device=0 if torch.cuda.is_available() else -1
+        )
+
+        models.models_loaded = True
+        logger.info("Models loaded successfully")
+
+    except Exception as e:
+        models.load_error = str(e)
+        logger.exception("Failed to load models")
 
 
 # ====================
@@ -46,9 +73,67 @@ class SummarizedExtractTextResponse(BaseModel):
     summary: str = Field(..., json_schema_extra={"example": "Краткое содержание текста на выбранном языке"})
 
 
+class HealthReadyResponse(BaseModel):
+    status: Literal["ready"]
+    models: dict[str, str]
+    uptime_seconds: int
+
+
+class HealthNotReadyResponse(BaseModel):
+    status: Literal["not_ready"]
+    missing_models: list[str]
+    error: str | None = None
+
+
 # ====================
 # Роуты
 # ====================
+@app.get("/health/live", tags=["Health"])
+def liveness():
+    return {"status": "alive"}
+
+
+@app.get(
+    "/health/ready",
+    tags=["Health"],
+    response_model=Union[HealthReadyResponse, HealthNotReadyResponse],
+    summary="Проверка готовности API принимать OCR запросы",
+    description="Возвращает информацию по статусу API и загрузки моделей"
+)
+def readiness():
+    missing = []
+
+    if models.ocr_processor is None:
+        missing.append("ocr_processor")
+    if models.ocr_model is None:
+        missing.append("ocr_model")
+    if models.lang_detect is None:
+        missing.append("language_detector")
+    if models.summarizer is None:
+        missing.append("summarizer")
+
+    if missing:
+        return JSONResponse(
+            status_code=503,
+            content=HealthNotReadyResponse(
+                status="not_ready",
+                missing_models=missing,
+                error=models.load_error,
+            ).model_dump(),
+        )
+
+    return HealthReadyResponse(
+        status="ready",
+        models={
+            "ocr": "naver-clova-ix/donut-base",
+            "language_detection": "papluca/xlm-roberta-base-language-detection",
+            "summarization": "facebook/bart-large-cnn",
+            "translation": "lazy-load",
+        },
+        uptime_seconds=int(time.time() - START_TIME),
+    )
+
+
 @app.post(
     "/extract-text",
     response_model=ExtractTextResponse,
@@ -85,7 +170,7 @@ async def summarized_extract_text(
             status_code=400,
             detail=f"Unsupported summary_language. Supported languages: {sorted(SUPPORTED_LANGS)}"
         )
-    
+
     try:
         image_bytes = await image.read()
         text = ocr_image(image_bytes)
