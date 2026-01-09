@@ -63,6 +63,8 @@ venv\Scripts\activate     # Windows
 
 #requirments
 pip install -r requirements.txt
+#requirments windows/linux: 
+pip install -r requirements.txt -f https://download.pytorch.org/whl/cpu/torch_stable.html
 
 #start
 uvicorn app.main:app --reload
