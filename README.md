@@ -1,6 +1,8 @@
 # OCR & Summarization API
 
 API для распознавания текста с изображений и генерации краткого резюме на выбранном языке.
+Поддерживает следующие языки для OCR: Английский ("en")
+Поддерживает следующие языки для перевода: Английский ("en"), Русский ("ru"), Немецкий ("de"), Французский ("fr"), Испанский ("es"), Итальянский ("it"), Португальский ("pt"), Нидерландский ("nl").
 
 ## Роуты
 
@@ -9,8 +11,8 @@ API для распознавания текста с изображений и 
    - Ответ: 
      ```json
      {
-       "text": "Пример текста с изображения",
-       "language": "ru"
+       "text": "Exapmle text from image",
+       "language": "en"
      }
      ```
 
@@ -20,7 +22,7 @@ API для распознавания текста с изображений и 
    - Ответ:
      ```json
      {
-       "original_language": "ru",
+       "original_language": "en",
        "summary": "Краткое содержание текста на выбранном языке"
      }
      ```
@@ -43,7 +45,7 @@ API для распознавания текста с изображений и 
     {
       "status": "ready",
       "models": {
-        "ocr": "naver-clova-ix/donut-base",
+        "ocr": "facebook/nougat-base",
         "language_detection": "papluca/xlm-roberta-base-language-detection",
         "summarization": "facebook/bart-large-cnn",
         "translation": "lazy-load"
@@ -60,7 +62,7 @@ source venv/bin/activate  # Linux/macOS
 venv\Scripts\activate     # Windows
 
 #requirments
-pip install -r requirements.txt -f https://download.pytorch.org/whl/cpu/torch_stable.html
+pip install -r requirements.txt
 
 #start
 uvicorn app.main:app --reload

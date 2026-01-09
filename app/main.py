@@ -6,6 +6,7 @@ from . import models
 import logging
 from typing import Literal, Union
 import time
+import os
 
 
 logging.basicConfig(level=logging.INFO)
@@ -18,8 +19,6 @@ app = FastAPI(title="OCR & Summarization API")
 
 @app.on_event("startup")
 def load_models():
-    import os
-
     load_flag = os.getenv("LOAD_MODELS", "1")
     if load_flag == "0":
         logger.info("LOAD_MODELS=0 -> skip loading ML models")
@@ -29,16 +28,17 @@ def load_models():
         logger.info("Loading ML models...")
 
         import torch
-        from transformers import DonutProcessor, VisionEncoderDecoderModel, pipeline as hf_pipeline
+        from transformers import NougatProcessor, VisionEncoderDecoderModel, pipeline as hf_pipeline
 
         DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-        models.ocr_processor = DonutProcessor.from_pretrained(
-            "naver-clova-ix/donut-base", use_fast=True
+        models.ocr_processor = NougatProcessor.from_pretrained(
+            "facebook/nougat-base"
         )
         models.ocr_model = VisionEncoderDecoderModel.from_pretrained(
-            "naver-clova-ix/donut-base"
+            "facebook/nougat-base"
         ).to(DEVICE)
+        models.ocr_model.eval()
 
         models.lang_detect = hf_pipeline(
             "text-classification",
@@ -64,12 +64,12 @@ def load_models():
 # Pydantic модели для ответов
 # ====================
 class ExtractTextResponse(BaseModel):
-    text: str = Field(..., json_schema_extra={"example": "Пример текста с изображения"})
-    language: str = Field(..., json_schema_extra={"example": "ru"})
+    text: str = Field(..., json_schema_extra={"example": "Exapmle text from image"})
+    language: str = Field(..., json_schema_extra={"example": "en"})
 
 
 class SummarizedExtractTextResponse(BaseModel):
-    original_language: str = Field(..., json_schema_extra={"example": "ru"})
+    original_language: str = Field(..., json_schema_extra={"example": "en"})
     summary: str = Field(..., json_schema_extra={"example": "Краткое содержание текста на выбранном языке"})
 
 
@@ -88,7 +88,12 @@ class HealthNotReadyResponse(BaseModel):
 # ====================
 # Роуты
 # ====================
-@app.get("/health/live", tags=["Health"])
+@app.get(
+    "/health/live",
+    tags=["Health"],
+    summary="Проверка доступности API",
+    description="Проверяет, что API запущено и отвечает на HTTP-запросы"
+)
 def liveness():
     return {"status": "alive"}
 
@@ -125,7 +130,7 @@ def readiness():
     return HealthReadyResponse(
         status="ready",
         models={
-            "ocr": "naver-clova-ix/donut-base",
+            "ocr": "facebook/nougat-base",
             "language_detection": "papluca/xlm-roberta-base-language-detection",
             "summarization": "facebook/bart-large-cnn",
             "translation": "lazy-load",
