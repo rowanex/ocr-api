@@ -1,10 +1,11 @@
 fastapi
 uvicorn[standard]
 transformers>=4.30
-protobuf
-sentencepiece
-torchvision
-torch
+torch>=2.6; sys_platform == "darwin"
+torchvision>=0.17.2; sys_platform == "darwin"
+numpy<2; sys_platform == "darwin"
+torch==2.2.2+cpu; sys_platform != "darwin"
+torchvision==0.17.2+cpu; sys_platform != "darwin"
 Pillow
 pytest
 flake8
