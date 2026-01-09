@@ -1,5 +1,3 @@
-from typing import Optional
-
 models_loaded = False
 load_error: str | None = None
 

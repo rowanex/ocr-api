@@ -1,8 +1,11 @@
 import io
 from fastapi.testclient import TestClient
 from app.main import app
-from app import utils
+from app import utils, models
+import os
 
+
+os.environ["LOAD_MODELS"] = "0"
 
 client = TestClient(app)
 
@@ -140,7 +143,7 @@ def test_translate_text_model_not_found(monkeypatch):
 
 def test_detect_language(monkeypatch):
     monkeypatch.setattr(
-        utils,
+        models,
         "lang_detect",
         lambda text: [{"label": "ru"}],
     )
